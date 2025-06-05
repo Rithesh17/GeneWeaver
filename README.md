@@ -1,15 +1,18 @@
-# GeneWeaver: Parametric Matrix Module in Chisel
+# GeneWeaver: Parametric DNA Sequence Alignment Module in Chisel
 
-**GeneWeaver** is a hardware design project developed using Chisel (Constructing Hardware In a Scala Embedded Language). It implements a configurable scoring matrix for gene compatibility analysis using a modular design. The matrix is composed of reusable score cells that allow flexible experimentation in gene network modeling, computation, and visualization.
+**GeneWeaver** is a hardware design project developed in Chisel (Constructing Hardware in a Scala Embedded Language). It implements a fully parametric, hardware-accelerated Needleman-Wunsch algorithm for DNA sequence alignment, designed for flexibility, efficiency, and clarity.
 
-## Project Overview
+## Overview
 
-This project simulates an 8×8 matrix of `ScoreCell` modules. Each `ScoreCell` performs a simple computation based on input gene compatibility scores and can be extended to support more complex biological computations. The matrix can be configured for different sizes and scoring behaviors with minor modifications.
+This project simulates a matrix of `ScoreCell` modules that align two DNA sequences using customizable match/mismatch/gap scoring. It supports optional traceback for alignment reconstruction and offers two modes of operation: memory-mapped and streaming.
 
-Key features:
-- Modular design using `ScoreCell` as the fundamental computation unit
-- Parametric scalability via `ScoreMatrix`
-- Test suite to verify correct behavior of the matrix structure
+### Key Features
+
+- Modular hierarchy: `ScoreCell`, `ScoreMatrix`, and testbenches
+- Parametric matrix size and scoring values
+- Optional traceback reconstruction
+- Streaming or memory-mapped I/O interface
+- Verilog generation with `ScoreMatrixGenerator.scala`
 
 ---
 
@@ -21,11 +24,14 @@ GeneWeaver/
 ├── src/
 │   ├── main/
 │   │   └── scala/
-│   │       ├── ScoreCell.scala         # Defines a basic scoring cell
-│   │       └── ScoreMatrix8x8.scala    # Instantiates an 8×8 matrix of ScoreCells
+│   │       ├── ScoreCell.scala              # Basic scoring unit for DNA pairwise comparison
+│   │       ├── ScoreMatrix.scala            # Configurable matrix of ScoreCells
+│   │       └── ScoreMatrixGenerator.scala   # Generator script for Verilog
 │   └── test/
 │       └── scala/
-│           └── ScoreMatrixTester.scala # Unit tests for ScoreMatrix8x8
+│           ├── ScoreCellTester.scala        # Tests for ScoreCell logic
+│           ├── ScoreMatrixMemoryTester.scala # Tests matrix with memory-mapped I/O
+│           └── ScoreMatrixStreamTester.scala # Tests matrix with streaming I/O
 ```
 
 ---
@@ -34,31 +40,45 @@ GeneWeaver/
 
 ### Prerequisites
 
-Make sure you have the following installed:
-
-- Java (JDK 8 or higher)
+- Java (JDK 8+)
 - [sbt (Scala Build Tool)](https://www.scala-sbt.org/)
-- Chisel (via sbt dependencies)
+- Internet (for fetching Chisel dependencies)
 
-### Build & Run Tests
-
-To compile the project and run unit tests:
+### Run Tests
 
 ```bash
 sbt test
 ```
 
-You should see the test output verifying the behavior of `ScoreMatrix8x8`.
+### Generate Verilog
+
+```bash
+sbt "runMain ScoreMatrixGenerator"
+```
+
+This generates the Verilog output for a configurable instance of the `ScoreMatrix` module.
 
 ---
 
-## Modules
+## Module Descriptions
 
 ### `ScoreCell.scala`
-A basic cell that computes a gene compatibility score based on input values. Can be extended to include more complex operations or states.
+A single comparison unit computing alignment scores between DNA bases. Accepts three directions (diag, up, left) and outputs the best score and traceback direction.
 
-### `ScoreMatrix8x8.scala`
-Constructs a matrix of interconnected `ScoreCell`s. Each row and column can be thought of as a gene input, and the resulting matrix represents interaction scores.
+### `ScoreMatrix.scala`
+Constructs a parametric matrix of `ScoreCell`s, processes two input sequences, and optionally reconstructs alignment via traceback.
 
-### `ScoreMatrixTester.scala`
-Unit test suite validating matrix correctness using example inputs and expected outputs.
+### `ScoreMatrixGenerator.scala`
+Generates Verilog from a custom configuration of the ScoreMatrix.
+
+### `ScoreCellTester.scala`
+Unit tests for standalone `ScoreCell` behavior.
+
+### `ScoreMatrixMemoryTester.scala` and `ScoreMatrixStreamTester.scala`
+Test the matrix behavior using two different I/O styles — memory-mapped and streaming.
+
+---
+
+## License
+
+This project is for academic use and learning purposes.
