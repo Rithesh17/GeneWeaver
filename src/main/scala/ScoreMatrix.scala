@@ -3,71 +3,75 @@ package geneweaver
 import chisel3._
 import chisel3.util._
 
-class ScoreMatrix extends Module {
+class ScoreMatrix(
+  val N: Int,
+  val dataWidth: Int = 8,
+  val matchScore: Int = 2,
+  val mismatchScore: Int = -1,
+  val gapScore: Int = -2
+) extends Module {
   val io = IO(new Bundle {
-    val outScore = Output(SInt(8.W)) // Final: bottom-right cell
+    val seqA = Input(Vec(N, UInt(2.W)))
+    val seqB = Input(Vec(N, UInt(2.W)))
+    val outScore = Output(SInt(dataWidth.W)) // Final: bottom-right cell
   })
 
-  // Hardcoded sequences of length 8 (AGCTACGT)
-  val seqA = VecInit("b00".U, "b10".U, "b01".U, "b11".U, "b00".U, "b01".U, "b10".U, "b11".U) // A G C T A C G T
-  val seqB = VecInit("b00".U, "b01".U, "b10".U, "b11".U, "b11".U, "b00".U, "b10".U, "b01".U) // A C G T T A G C
+  val matchScoreS = matchScore.S(dataWidth.W)
+  val mismatchScoreS = mismatchScore.S(dataWidth.W)
+  val gapScoreS = gapScore.S(dataWidth.W)
 
-  val matchScore = 2.S
-  val mismatchScore = (-1).S
-  val gapScore = (-2).S
+  val matrix = Seq.fill(N, N)(Module(new ScoreCell(dataWidth)))
 
-  val matrix = Seq.fill(8, 8)(Module(new ScoreCell(8)))
-
-  // Initializing top-left corner
+  // Top-left corner initialization
   matrix(0)(0).io.diag := 0.S
-  matrix(0)(0).io.up := gapScore
-  matrix(0)(0).io.left := gapScore
-  matrix(0)(0).io.charA := seqA(0)
-  matrix(0)(0).io.charB := seqB(0)
-  matrix(0)(0).io.matchScore := matchScore
-  matrix(0)(0).io.mismatchScore := mismatchScore
-  matrix(0)(0).io.gapScore := gapScore
+  matrix(0)(0).io.up := gapScoreS
+  matrix(0)(0).io.left := gapScoreS
+  matrix(0)(0).io.charA := io.seqA(0)
+  matrix(0)(0).io.charB := io.seqB(0)
+  matrix(0)(0).io.matchScore := matchScoreS
+  matrix(0)(0).io.mismatchScore := mismatchScoreS
+  matrix(0)(0).io.gapScore := gapScoreS
 
-  // Filling top row and left column
-  for (j <- 1 until 8) {
+  // Top row
+  for (j <- 1 until N) {
     val cell = matrix(0)(j)
-    cell.io.diag := gapScore * j.S
-    cell.io.up := gapScore * j.S
+    cell.io.diag := gapScoreS * j.S
+    cell.io.up := gapScoreS * j.S
     cell.io.left := matrix(0)(j - 1).io.outScore
-    cell.io.charA := seqA(j)
-    cell.io.charB := seqB(0)
-    cell.io.matchScore := matchScore
-    cell.io.mismatchScore := mismatchScore
-    cell.io.gapScore := gapScore
+    cell.io.charA := io.seqA(j)
+    cell.io.charB := io.seqB(0)
+    cell.io.matchScore := matchScoreS
+    cell.io.mismatchScore := mismatchScoreS
+    cell.io.gapScore := gapScoreS
   }
 
-  for (i <- 1 until 8) {
+  // Left column
+  for (i <- 1 until N) {
     val cell = matrix(i)(0)
-    cell.io.diag := gapScore * i.S
+    cell.io.diag := gapScoreS * i.S
     cell.io.up := matrix(i - 1)(0).io.outScore
-    cell.io.left := gapScore * i.S
-    cell.io.charA := seqA(0)
-    cell.io.charB := seqB(i)
-    cell.io.matchScore := matchScore
-    cell.io.mismatchScore := mismatchScore
-    cell.io.gapScore := gapScore
+    cell.io.left := gapScoreS * i.S
+    cell.io.charA := io.seqA(0)
+    cell.io.charB := io.seqB(i)
+    cell.io.matchScore := matchScoreS
+    cell.io.mismatchScore := mismatchScoreS
+    cell.io.gapScore := gapScoreS
   }
 
-  // Filling the rest
-  for (i <- 1 until 8) {
-    for (j <- 1 until 8) {
+  // Fill rest of matrix
+  for (i <- 1 until N) {
+    for (j <- 1 until N) {
       val cell = matrix(i)(j)
       cell.io.diag := matrix(i - 1)(j - 1).io.outScore
       cell.io.up := matrix(i - 1)(j).io.outScore
       cell.io.left := matrix(i)(j - 1).io.outScore
-      cell.io.charA := seqA(j)
-      cell.io.charB := seqB(i)
-      cell.io.matchScore := matchScore
-      cell.io.mismatchScore := mismatchScore
-      cell.io.gapScore := gapScore
+      cell.io.charA := io.seqA(j)
+      cell.io.charB := io.seqB(i)
+      cell.io.matchScore := matchScoreS
+      cell.io.mismatchScore := mismatchScoreS
+      cell.io.gapScore := gapScoreS
     }
   }
 
-  // Output: bottom-right cell score
-  io.outScore := matrix(7)(7).io.outScore
+  io.outScore := matrix(N - 1)(N - 1).io.outScore
 }
