@@ -13,7 +13,9 @@ class ScoreCell(val dataWidth: Int = 8) extends Module {
     val matchScore = Input(SInt(dataWidth.W))
     val mismatchScore = Input(SInt(dataWidth.W))
     val gapScore = Input(SInt(dataWidth.W))
+
     val outScore = Output(SInt(dataWidth.W))
+    val tracebackDir = Output(UInt(2.W)) // 0: diag, 1: up, 2: left
   })
 
   // Diagonal move
@@ -24,6 +26,19 @@ class ScoreCell(val dataWidth: Int = 8) extends Module {
   val upScore = io.up + io.gapScore
   val leftScore = io.left + io.gapScore
 
-  // Max of the three
-  io.outScore := Seq(diagScore, upScore, leftScore).reduce((a, b) => Mux(a > b, a, b))
+  // Compute max score
+  val scores = Seq(diagScore, upScore, leftScore)
+  val maxScore = scores.reduce((a, b) => Mux(a > b, a, b))
+  io.outScore := maxScore
+
+  // Direction encoding: 0 = diag, 1 = up, 2 = left
+  val dir = Wire(UInt(2.W))
+  when(maxScore === diagScore) {
+    dir := 0.U
+  }.elsewhen(maxScore === upScore) {
+    dir := 1.U
+  }.otherwise {
+    dir := 2.U
+  }
+  io.tracebackDir := dir
 }
